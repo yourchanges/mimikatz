@@ -74,6 +74,9 @@ typedef struct _KERB_INFOS {
 	LONG	offsetSizeOfCsp;
 	LONG	offsetNames;
 	SIZE_T	structCspInfosSize;
+
+	LONG	offsetPasswordErase;
+	SIZE_T	passwordEraseSize;
 } KERB_INFOS, *PKERB_INFOS;
 
 typedef struct _KERB_SMARTCARD_CSP_INFO_5 {
@@ -169,7 +172,7 @@ typedef struct _KIWI_KERBEROS_LOGON_SESSION_51 {
 	PVOID		unk6;
 	PVOID		unk7;
 	LUID		LocallyUniqueIdentifier;
-#ifdef _M_IX86
+#if defined(_M_IX86)
 	ULONG		unkAlign;
 #endif
 	FILETIME	unk8;
@@ -206,7 +209,7 @@ typedef struct _KIWI_KERBEROS_LOGON_SESSION {
 	PVOID		unk5;
 	PVOID		unk6;
 	LUID		LocallyUniqueIdentifier;
-#ifdef _M_IX86
+#if defined(_M_IX86)
 	ULONG		unkAlign;
 #endif
 	FILETIME	unk7;
@@ -261,7 +264,7 @@ typedef struct _KIWI_KERBEROS_LOGON_SESSION_10 {
 	PVOID		unk11;
 	PVOID		unk12;
 	PVOID		unk13;
-#ifdef _M_IX86
+#if defined(_M_IX86)
 	ULONG		unkAlign;
 #endif
 	KIWI_KERBEROS_10_PRIMARY_CREDENTIAL	credentials;
@@ -287,6 +290,68 @@ typedef struct _KIWI_KERBEROS_LOGON_SESSION_10 {
 	FILETIME	unk29;
 	PVOID		SmartcardInfos;
 } KIWI_KERBEROS_LOGON_SESSION_10, *PKIWI_KERBEROS_LOGON_SESSION_10;
+
+typedef struct _KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607_ISO
+{
+	DWORD StructSize;
+	struct _LSAISO_DATA_BLOB *isoBlob; // aligned;
+} KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607_ISO, *PKIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607_ISO;
+
+typedef struct _KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607
+{
+	LSA_UNICODE_STRING UserName;
+	LSA_UNICODE_STRING Domaine;
+	PVOID		unkFunction;
+	DWORD		type; // or flags 2 = normal, 1 = ISO
+	union {
+		LSA_UNICODE_STRING Password;
+		KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607_ISO IsoPassword;
+	};
+} KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607, *PKIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607;
+
+typedef struct _KIWI_KERBEROS_LOGON_SESSION_10_1607 {
+	ULONG		UsageCount;
+	LIST_ENTRY	unk0;
+	PVOID		unk1;
+	ULONG		unk1b;
+	FILETIME	unk2;
+	PVOID		unk4;
+	PVOID		unk5;
+	PVOID		unk6;
+	LUID		LocallyUniqueIdentifier;
+	FILETIME	unk7;
+	PVOID		unk8;
+	ULONG		unk8b;
+	FILETIME	unk9;
+	PVOID		unk11;
+	PVOID		unk12;
+	PVOID		unk13;
+#if defined(_M_IX86)
+	ULONG		unkAlign;
+#endif
+	KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607	credentials;
+	ULONG		unk14;
+	ULONG		unk15;
+	ULONG		unk16;
+	ULONG		unk17;
+	PVOID		unk18;
+	PVOID		unk19;
+	PVOID		unk20;
+	PVOID		unk21;
+	PVOID		unk22;
+	PVOID		unk23;
+	PVOID		unk24;
+	PVOID		unk25;
+	PVOID		pKeyList;
+	PVOID		unk26;
+	LIST_ENTRY	Tickets_1;
+	FILETIME	unk27;
+	LIST_ENTRY	Tickets_2;
+	FILETIME	unk28;
+	LIST_ENTRY	Tickets_3;
+	FILETIME	unk29;
+	PVOID		SmartcardInfos;
+} KIWI_KERBEROS_LOGON_SESSION_10_1607, *PKIWI_KERBEROS_LOGON_SESSION_10_1607;
 
 typedef struct _KIWI_KERBEROS_INTERNAL_TICKET_51 {
 	LIST_ENTRY	This;
@@ -435,8 +500,7 @@ typedef struct _KIWI_KERBEROS_INTERNAL_TICKET_10 {
 	LSA_UNICODE_STRING	Description;
 	LSA_UNICODE_STRING	AltTargetDomainName;
 	LSA_UNICODE_STRING	KDCServer;	//?
-	DWORD		unk10586_d;
-	PVOID		unk10586_p;
+	LSA_UNICODE_STRING	unk10586_d;	//?
 	PKERB_EXTERNAL_NAME	ClientName;
 	PVOID		name0;
 	ULONG		TicketFlags;
@@ -459,6 +523,67 @@ typedef struct _KIWI_KERBEROS_INTERNAL_TICKET_10 {
 	ULONG		TicketKvno;
 	KIWI_KERBEROS_BUFFER	Ticket;
 } KIWI_KERBEROS_INTERNAL_TICKET_10, *PKIWI_KERBEROS_INTERNAL_TICKET_10;
+
+typedef struct _KIWI_KERBEROS_INTERNAL_TICKET_10_1607 {
+	LIST_ENTRY	This;
+	PVOID		unk0;
+	PVOID		unk1;
+	PKERB_EXTERNAL_NAME	ServiceName;
+	PKERB_EXTERNAL_NAME	TargetName;
+	LSA_UNICODE_STRING	DomainName;
+	LSA_UNICODE_STRING	TargetDomainName;
+	LSA_UNICODE_STRING	Description;
+	LSA_UNICODE_STRING	AltTargetDomainName;
+	LSA_UNICODE_STRING	KDCServer;	//?
+	LSA_UNICODE_STRING	unk10586_d;	//?
+	PKERB_EXTERNAL_NAME	ClientName;
+	PVOID		name0;
+	ULONG		TicketFlags;
+	ULONG		unk2;
+	PVOID		unk14393_0;
+	ULONG		KeyType;
+	KIWI_KERBEROS_BUFFER	Key;
+	PVOID		unk14393_1;
+	PVOID		unk3; // ULONG		KeyType2;
+	PVOID		unk4; // KIWI_KERBEROS_BUFFER	Key2;
+	PVOID		unk5; // up
+	FILETIME	StartTime;
+	FILETIME	EndTime;
+	FILETIME	RenewUntil;
+	ULONG		unk6;
+	ULONG		unk7;
+	PCWSTR		domain;
+	ULONG		unk8;
+	PVOID		strangeNames;
+	ULONG		unk9;
+	ULONG		TicketEncType;
+	ULONG		TicketKvno;
+	KIWI_KERBEROS_BUFFER	Ticket;
+} KIWI_KERBEROS_INTERNAL_TICKET_10_1607, *PKIWI_KERBEROS_INTERNAL_TICKET_10_1607;
+
+typedef struct _KERB_HASHPASSWORD_GENERIC {
+	DWORD Type;
+	SIZE_T Size;
+	PBYTE Checksump;
+} KERB_HASHPASSWORD_GENERIC, *PKERB_HASHPASSWORD_GENERIC;
+
+typedef struct _KERB_HASHPASSWORD_5 {
+	LSA_UNICODE_STRING salt;	// http://tools.ietf.org/html/rfc3962
+	KERB_HASHPASSWORD_GENERIC generic;
+} KERB_HASHPASSWORD_5, *PKERB_HASHPASSWORD_5;
+
+typedef struct _KERB_HASHPASSWORD_6 {
+	LSA_UNICODE_STRING salt;	// http://tools.ietf.org/html/rfc3962
+	PVOID stringToKey; // AES Iterations (dword ?)
+	KERB_HASHPASSWORD_GENERIC generic;
+} KERB_HASHPASSWORD_6, *PKERB_HASHPASSWORD_6;
+
+typedef struct _KERB_HASHPASSWORD_6_1607 {
+	LSA_UNICODE_STRING salt;	// http://tools.ietf.org/html/rfc3962
+	PVOID stringToKey; // AES Iterations (dword ?)
+	PVOID unk0;
+	KERB_HASHPASSWORD_GENERIC generic;
+} KERB_HASHPASSWORD_6_1607, *PKERB_HASHPASSWORD_6_1607;
 
 typedef struct _KIWI_KERBEROS_KEYS_LIST_5 {
 	DWORD unk0;		// dword_1233EC8 dd 4

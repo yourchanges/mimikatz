@@ -5,6 +5,8 @@
 */
 #include "kull_m_memory.h"
 
+KULL_M_MEMORY_HANDLE KULL_M_MEMORY_GLOBAL_OWN_HANDLE = {KULL_M_MEMORY_TYPE_OWN, NULL};
+
 BOOL kull_m_memory_open(IN KULL_M_MEMORY_TYPE Type, IN HANDLE hAny, OUT PKULL_M_MEMORY_HANDLE *hMemory)
 {
 	BOOL status = FALSE;
@@ -86,8 +88,7 @@ BOOL kull_m_memory_copy(OUT PKULL_M_MEMORY_ADDRESS Destination, IN PKULL_M_MEMOR
 {
 	BOOL status = FALSE;
 	BOOL bufferMeFirst = FALSE;
-	KULL_M_MEMORY_HANDLE  hBuffer = {KULL_M_MEMORY_TYPE_OWN, NULL};
-	KULL_M_MEMORY_ADDRESS aBuffer = {NULL, &hBuffer};
+	KULL_M_MEMORY_ADDRESS aBuffer = {NULL, &KULL_M_MEMORY_GLOBAL_OWN_HANDLE};
 	DWORD nbReadWrite;
 
 	switch(Destination->hMemory->type)
@@ -169,8 +170,7 @@ BOOL kull_m_memory_copy(OUT PKULL_M_MEMORY_ADDRESS Destination, IN PKULL_M_MEMOR
 BOOL kull_m_memory_search(IN PKULL_M_MEMORY_ADDRESS Pattern, IN SIZE_T Length, IN PKULL_M_MEMORY_SEARCH Search, IN BOOL bufferMeFirst)
 {
 	BOOL status = FALSE;
-	KULL_M_MEMORY_HANDLE  hBuffer = {KULL_M_MEMORY_TYPE_OWN, NULL};
-	KULL_M_MEMORY_SEARCH  sBuffer = {{{NULL, &hBuffer}, Search->kull_m_memoryRange.size}, NULL};
+	KULL_M_MEMORY_SEARCH  sBuffer = {{{NULL, &KULL_M_MEMORY_GLOBAL_OWN_HANDLE}, Search->kull_m_memoryRange.size}, NULL};
 	PBYTE CurrentPtr;
 	PBYTE limite = (PBYTE) Search->kull_m_memoryRange.kull_m_memoryAdress.address + Search->kull_m_memoryRange.size;
 
@@ -235,17 +235,17 @@ BOOL kull_m_memory_alloc(IN PKULL_M_MEMORY_ADDRESS Address, IN SIZE_T Lenght, IN
 	return (Address->address) != NULL;
 }
 
-BOOL kull_m_memory_free(IN PKULL_M_MEMORY_ADDRESS Address, IN SIZE_T Lenght)
+BOOL kull_m_memory_free(IN PKULL_M_MEMORY_ADDRESS Address)
 {
 	BOOL status = FALSE;
 
 	switch(Address->hMemory->type)
 	{
 		case KULL_M_MEMORY_TYPE_OWN:
-			status = VirtualFree(Address->address, Lenght, MEM_RELEASE);
+			status = VirtualFree(Address->address, 0, MEM_RELEASE);
 			break;
 		case KULL_M_MEMORY_TYPE_PROCESS:
-			status = VirtualFreeEx(Address->hMemory->pHandleProcess->hProcess, Address->address, Lenght, MEM_RELEASE);
+			status = VirtualFreeEx(Address->hMemory->pHandleProcess->hProcess, Address->address, 0, MEM_RELEASE);
 			break;
 		case KULL_M_MEMORY_TYPE_KERNEL:
 			kull_m_kernel_ioctl_handle(Address->hMemory->pHandleDriver->hDriver, IOCTL_MIMIDRV_VM_FREE, Address->address, 0, NULL, NULL, FALSE);
@@ -260,9 +260,9 @@ BOOL kull_m_memory_free(IN PKULL_M_MEMORY_ADDRESS Address, IN SIZE_T Lenght)
 BOOL kull_m_memory_query(IN PKULL_M_MEMORY_ADDRESS Address, OUT PMEMORY_BASIC_INFORMATION MemoryInfo)
 {
 	BOOL status = FALSE;
-	PMINIDUMP_MEMORY_INFO_LIST maListeInfo = NULL;
-	PMINIDUMP_MEMORY_INFO mesInfos = NULL;
-	ULONG i;
+	//PMINIDUMP_MEMORY_INFO_LIST maListeInfo = NULL;
+	//PMINIDUMP_MEMORY_INFO mesInfos = NULL;
+	//ULONG i;
 
 	switch(Address->hMemory->type)
 	{
@@ -272,24 +272,24 @@ BOOL kull_m_memory_query(IN PKULL_M_MEMORY_ADDRESS Address, OUT PMEMORY_BASIC_IN
 	case KULL_M_MEMORY_TYPE_PROCESS:
 		status = VirtualQueryEx(Address->hMemory->pHandleProcess->hProcess, Address->address, MemoryInfo, sizeof(MEMORY_BASIC_INFORMATION)) == sizeof(MEMORY_BASIC_INFORMATION);
 		break;
-	case KULL_M_MEMORY_TYPE_PROCESS_DMP:
-		if(maListeInfo = (PMINIDUMP_MEMORY_INFO_LIST) kull_m_minidump_stream(Address->hMemory->pHandleProcessDmp->hMinidump, MemoryInfoListStream))
-		{
-			for(i = 0; (i < maListeInfo->NumberOfEntries) && !status; i++)
-			{
-				if(status = ((PBYTE) Address->address >= (PBYTE) mesInfos->BaseAddress) && ((PBYTE) Address->address <= (PBYTE) mesInfos->BaseAddress + (SIZE_T) mesInfos->RegionSize))
-				{
-					MemoryInfo->AllocationBase = (PVOID) mesInfos->AllocationBase;
-					MemoryInfo->AllocationProtect = mesInfos->AllocationProtect;
-					MemoryInfo->BaseAddress = (PVOID) mesInfos->BaseAddress;
-					MemoryInfo->Protect = mesInfos->Protect;
-					MemoryInfo->RegionSize = (SIZE_T) mesInfos->RegionSize;
-					MemoryInfo->State = mesInfos->State;
-					MemoryInfo->Type = mesInfos->Type;
-				}
-			}
-		}
-		break;
+	//case KULL_M_MEMORY_TYPE_PROCESS_DMP:
+	//	if(maListeInfo = (PMINIDUMP_MEMORY_INFO_LIST) kull_m_minidump_stream(Address->hMemory->pHandleProcessDmp->hMinidump, MemoryInfoListStream))
+	//	{
+	//		for(i = 0; (i < maListeInfo->NumberOfEntries) && !status; i++)
+	//		{
+	//			if(status = ((PBYTE) Address->address >= (PBYTE) mesInfos->BaseAddress) && ((PBYTE) Address->address <= (PBYTE) mesInfos->BaseAddress + (SIZE_T) mesInfos->RegionSize))
+	//			{
+	//				MemoryInfo->AllocationBase = (PVOID) mesInfos->AllocationBase;
+	//				MemoryInfo->AllocationProtect = mesInfos->AllocationProtect;
+	//				MemoryInfo->BaseAddress = (PVOID) mesInfos->BaseAddress;
+	//				MemoryInfo->Protect = mesInfos->Protect;
+	//				MemoryInfo->RegionSize = (SIZE_T) mesInfos->RegionSize;
+	//				MemoryInfo->State = mesInfos->State;
+	//				MemoryInfo->Type = mesInfos->Type;
+	//			}
+	//		}
+	//	}
+	//	break;
 	default:
 		break;
 	}
@@ -323,8 +323,7 @@ BOOL kull_m_memory_protect(IN PKULL_M_MEMORY_ADDRESS Address, IN SIZE_T dwSize, 
 BOOL kull_m_memory_equal(IN PKULL_M_MEMORY_ADDRESS Address1, IN PKULL_M_MEMORY_ADDRESS Address2, IN SIZE_T Lenght)
 {
 	BOOL status = FALSE;
-	KULL_M_MEMORY_HANDLE  hBuffer = {KULL_M_MEMORY_TYPE_OWN, NULL};
-	KULL_M_MEMORY_ADDRESS aBuffer = {NULL, &hBuffer};
+	KULL_M_MEMORY_ADDRESS aBuffer = {NULL, &KULL_M_MEMORY_GLOBAL_OWN_HANDLE};
 	switch(Address1->hMemory->type)
 	{
 	case KULL_M_MEMORY_TYPE_OWN:
@@ -389,3 +388,61 @@ BOOL kull_m_memory_quick_decompress(IN PVOID data, IN DWORD size, IN OPTIONAL DW
 	}
 	return status;
 }
+
+void kull_m_memory_reverseBytes(PVOID start, SIZE_T size)
+{
+	PBYTE lo = (PBYTE) start, hi = lo + size - 1;
+	BYTE swap;
+	while (lo < hi)
+	{
+		swap = *lo;
+		*lo++ = *hi;
+		*hi-- = swap;
+	}
+}
+#if defined(_M_ARM64)
+PVOID kull_m_memory_arm64_AddrFromInstr(PVOID cur, ULONG i1, ULONG i2)
+{
+	PVOID addr = NULL;
+	ULONG_PTR curAddr = (ULONG_PTR)cur, page;
+	LONG offset;
+	//kprintf(L"Cur  @: %p (%p)\n", curAddr, (curAddr & ~((ULONG_PTR) 0xfff)));
+	page = (curAddr & ~((ULONG_PTR)0xfff)) + (LONGLONG)(((i1 << 9) & 0x1ffffc000) | ((i1 >> 17) & 0x3000));
+	//kprintf(L"Page @: %p\n", page);
+
+	if ((i2 & 0xb9400000) == 0xb9400000)
+	{
+		//kprintf(L"{LDR (immediate -- unsigned offset)}\n");
+		offset = (i2 >> 10 & 0xfff) << ((i2 >> 30) & 0x3);
+	}
+	else if ((i2 & 0x91000000) == 0x91000000)
+	{
+		//kprintf(L"{ADD (immediate -- 64 bit variant, 0 shift)}\n");
+		offset = i2 >> 10 & 0xfff;
+	}
+	else
+	{
+		PRINT_ERROR(L"i2: %08x\n", i2);
+		return NULL;
+	}
+	//kprintf(L"Offset: 0x%08x\n", offset);
+	addr = (PVOID)(page + offset);
+	//kprintf(L"Addr @: %p\n", addr);
+	return addr;
+}
+
+PVOID kull_m_memory_arm64_getRealAddress(PKULL_M_MEMORY_ADDRESS Address, LONG off)
+{
+	PVOID ret = NULL;
+	ULONG data0, data1;
+	KULL_M_MEMORY_ADDRESS aBuffer = *Address, aLocalMemory = {&data0, &KULL_M_MEMORY_GLOBAL_OWN_HANDLE};
+	if (kull_m_memory_copy(&aLocalMemory, &aBuffer, sizeof(data0)))
+	{
+		aBuffer.address = (PBYTE) Address->address + off;
+		aLocalMemory.address = &data1;
+		if(kull_m_memory_copy(&aLocalMemory, &aBuffer, sizeof(data1)))
+			ret = kull_m_memory_arm64_AddrFromInstr(Address->address, data0, data1);
+	}
+	return ret;
+}
+#endif

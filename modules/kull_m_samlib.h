@@ -23,6 +23,19 @@ typedef struct _GROUP_MEMBERSHIP {
 	DWORD Attributes;
 } GROUP_MEMBERSHIP, *PGROUP_MEMBERSHIP;
 
+typedef struct _CYPHER_BLOCK {
+	CHAR data[8];
+} CYPHER_BLOCK, *PCYPHER_BLOCK;
+
+typedef struct _NT_OWF_PASSWORD {
+	CYPHER_BLOCK data[2];
+} NT_OWF_PASSWORD, *PNT_OWF_PASSWORD, ENCRYPTED_NT_OWF_PASSWORD, *PENCRYPTED_NT_OWF_PASSWORD, USER_SESSION_KEY;
+
+typedef struct _SAMPR_LOGON_HOURS {
+	unsigned short UnitsPerWeek;
+	unsigned char*  LogonHours;
+} SAMPR_LOGON_HOURS, *PSAMPR_LOGON_HOURS;
+
 typedef struct _SAMPR_USER_INTERNAL1_INFORMATION {
 	BYTE NTHash[LM_NTLM_HASH_LENGTH];
 	BYTE LMHash[LM_NTLM_HASH_LENGTH];
@@ -32,8 +45,45 @@ typedef struct _SAMPR_USER_INTERNAL1_INFORMATION {
 	BYTE PrivateDataSensitive;
 } SAMPR_USER_INTERNAL1_INFORMATION, *PSAMPR_USER_INTERNAL1_INFORMATION;
 
+ typedef struct _SAMPR_USER_ALL_INFORMATION {
+   FILETIME LastLogon;
+   FILETIME LastLogoff;
+   FILETIME PasswordLastSet;
+   FILETIME AccountExpires;
+   FILETIME PasswordCanChange;
+   FILETIME PasswordMustChange;
+   LSA_UNICODE_STRING UserName;
+   LSA_UNICODE_STRING FullName;
+   LSA_UNICODE_STRING HomeDirectory;
+   LSA_UNICODE_STRING HomeDirectoryDrive;
+   LSA_UNICODE_STRING ScriptPath;
+   LSA_UNICODE_STRING ProfilePath;
+   LSA_UNICODE_STRING AdminComment;
+   LSA_UNICODE_STRING WorkStations;
+   LSA_UNICODE_STRING UserComment;
+   LSA_UNICODE_STRING Parameters;
+   LSA_UNICODE_STRING LmOwfPassword;
+   LSA_UNICODE_STRING NtOwfPassword;
+   LSA_UNICODE_STRING PrivateData;
+   SAMPR_SR_SECURITY_DESCRIPTOR SecurityDescriptor;
+   DWORD UserId;
+   DWORD PrimaryGroupId;
+   DWORD UserAccountControl;
+   DWORD WhichFields;
+   SAMPR_LOGON_HOURS LogonHours;
+   WORD BadPasswordCount;
+   WORD LogonCount;
+   WORD CountryCode;
+   WORD CodePage;
+   BOOLEAN LmPasswordPresent;
+   BOOLEAN NtPasswordPresent;
+   BOOLEAN PasswordExpired;
+   BOOLEAN PrivateDataSensitive;
+ } SAMPR_USER_ALL_INFORMATION, *PSAMPR_USER_ALL_INFORMATION;
+
 typedef union _SAMPR_USER_INFO_BUFFER {
 	SAMPR_USER_INTERNAL1_INFORMATION Internal1;
+	SAMPR_USER_ALL_INFORMATION All;
 } SAMPR_USER_INFO_BUFFER, *PSAMPR_USER_INFO_BUFFER;
 
 typedef struct _SAMPR_RID_ENUMERATION {
@@ -54,13 +104,21 @@ extern NTSTATUS WINAPI SamLookupDomainInSamServer(IN SAMPR_HANDLE ServerHandle, 
 
 extern NTSTATUS WINAPI SamOpenDomain(IN SAMPR_HANDLE SamHandle, IN ACCESS_MASK DesiredAccess, IN PSID DomainId, OUT SAMPR_HANDLE * DomainHandle);
 extern NTSTATUS WINAPI SamOpenUser(IN SAMPR_HANDLE DomainHandle, IN ACCESS_MASK DesiredAccess, IN DWORD UserId, OUT SAMPR_HANDLE * UserHandle);
+extern NTSTATUS WINAPI SamOpenGroup(IN SAMPR_HANDLE DomainHandle, IN ACCESS_MASK DesiredAccess, IN DWORD GroupId, OUT SAMPR_HANDLE * GroupHandle);
+extern NTSTATUS WINAPI SamOpenAlias(IN SAMPR_HANDLE DomainHandle, IN ACCESS_MASK DesiredAccess, IN DWORD AliasId, OUT SAMPR_HANDLE * AliasHandle);
 extern NTSTATUS WINAPI SamQueryInformationUser(IN SAMPR_HANDLE UserHandle, IN USER_INFORMATION_CLASS UserInformationClass, PSAMPR_USER_INFO_BUFFER* Buffer);
+extern NTSTATUS WINAPI SamSetInformationUser(IN SAMPR_HANDLE UserHandle, IN USER_INFORMATION_CLASS UserInformationClass, PSAMPR_USER_INFO_BUFFER Buffer);
+extern NTSTATUS WINAPI SamiChangePasswordUser(IN SAMPR_HANDLE UserHandle, IN BOOL isOldLM, IN const BYTE oldLM[LM_NTLM_HASH_LENGTH], IN const BYTE newLM[LM_NTLM_HASH_LENGTH], IN BOOL isNewNTLM, IN const BYTE oldNTLM[LM_NTLM_HASH_LENGTH], IN const BYTE newNTLM[LM_NTLM_HASH_LENGTH]);
+
 extern NTSTATUS WINAPI SamGetGroupsForUser(IN SAMPR_HANDLE UserHandle, OUT PGROUP_MEMBERSHIP * Groups, OUT DWORD * CountReturned);
 extern NTSTATUS WINAPI SamGetAliasMembership(IN SAMPR_HANDLE DomainHandle, IN DWORD Count, IN PSID * Sid, OUT DWORD * CountReturned, OUT PDWORD * RelativeIds);
 
-extern NTSTATUS WINAPI SamGetMembersInGroup(IN SAMPR_HANDLE GroupHandle, OUT PSAMPR_GET_MEMBERS_BUFFER * Members);
+extern NTSTATUS WINAPI SamGetMembersInGroup(IN SAMPR_HANDLE GroupHandle, OUT PDWORD *Members, OUT PDWORD *Attributes, OUT DWORD * CountReturned); // todo !!!
+extern NTSTATUS WINAPI SamGetMembersInAlias(IN SAMPR_HANDLE AliasHandle, OUT PSID ** Members, OUT DWORD * CountReturned);
 
 extern NTSTATUS WINAPI SamEnumerateUsersInDomain(IN SAMPR_HANDLE DomainHandle, IN OUT PDWORD EnumerationContext, IN DWORD UserAccountControl, OUT PSAMPR_RID_ENUMERATION* Buffer, IN DWORD PreferedMaximumLength, OUT PDWORD CountReturned);
+extern NTSTATUS WINAPI SamEnumerateGroupsInDomain(IN SAMPR_HANDLE DomainHandle, IN OUT PDWORD EnumerationContext, OUT PSAMPR_RID_ENUMERATION * Buffer, IN DWORD PreferedMaximumLength, OUT PDWORD CountReturned);
+extern NTSTATUS WINAPI SamEnumerateAliasesInDomain(IN SAMPR_HANDLE DomainHandle, IN OUT PDWORD EnumerationContext, OUT PSAMPR_RID_ENUMERATION * Buffer, IN DWORD PreferedMaximumLength, OUT PDWORD CountReturned);
 extern NTSTATUS WINAPI SamLookupNamesInDomain(IN SAMPR_HANDLE DomainHandle, IN DWORD Count, IN PUNICODE_STRING Names, OUT PDWORD * RelativeIds, OUT PDWORD * Use);
 extern NTSTATUS WINAPI SamLookupIdsInDomain(IN SAMPR_HANDLE DomainHandle, IN DWORD Count, IN PDWORD RelativeIds, OUT PUNICODE_STRING * Names, OUT PDWORD * Use);
 extern NTSTATUS WINAPI SamRidToSid(IN SAMPR_HANDLE ObjectHandle, IN DWORD Rid, OUT PSID * Sid);
@@ -171,6 +229,9 @@ extern NTSTATUS WINAPI SamFreeMemory(IN PVOID Buffer);
 #define USER_ALL_PASSWORDEXPIRED		0x08000000
 #define USER_ALL_SECURITYDESCRIPTOR		0x10000000
 #define USER_ALL_UNDEFINED_MASK			0xc0000000
+
+#define USER_NORMAL_ACCOUNT				0x00000010
+#define USER_DONT_EXPIRE_PASSWORD		0x00000200
 
 //
 // Special Values and Constants - User

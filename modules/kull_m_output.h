@@ -9,7 +9,7 @@
 #include <fcntl.h>
 
 FILE * logfile;
-#ifdef _WINDLL
+#if !defined(MIMIKATZ_W2000_SUPPORT)
 wchar_t * outputBuffer;
 size_t outputBufferElements, outputBufferElementsPosition;
 #endif

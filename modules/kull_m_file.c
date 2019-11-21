@@ -5,7 +5,7 @@
 */
 #include "kull_m_file.h"
 
-BOOL isBase64Intercept = FALSE;
+BOOL isBase64InterceptOutput = FALSE, isBase64InterceptInput = FALSE;
 
 BOOL kull_m_file_getCurrentDirectory(wchar_t ** ppDirName)
 {
@@ -22,7 +22,7 @@ BOOL kull_m_file_getAbsolutePathOf(PCWCHAR thisData, wchar_t ** reponse)
 {
 	BOOL reussite = FALSE;
 	wchar_t *monRep;
-	*reponse = (wchar_t *) LocalAlloc(LPTR, MAX_PATH);
+	*reponse = (wchar_t *) LocalAlloc(LPTR, MAX_PATH * sizeof(wchar_t));
 
 	if(PathIsRelative(thisData))
 	{
@@ -32,8 +32,7 @@ BOOL kull_m_file_getAbsolutePathOf(PCWCHAR thisData, wchar_t ** reponse)
 			LocalFree(monRep);
 		}
 	}
-	else
-		reussite = PathCanonicalize(*reponse, thisData);
+	else reussite = PathCanonicalize(*reponse, thisData);
 
 	if(!reussite)
 		LocalFree(*reponse);
@@ -59,7 +58,7 @@ BOOL kull_m_file_writeData(PCWCHAR fileName, LPCVOID data, DWORD lenght)
 	HANDLE hFile = NULL;
 	LPWSTR base64;
 
-	if(isBase64Intercept)
+	if(isBase64InterceptOutput)
 	{
 		if(CryptBinaryToString((const BYTE *) data, lenght, CRYPT_STRING_BASE64, NULL, &dwBytesWritten))
 		{
@@ -92,7 +91,12 @@ BOOL kull_m_file_readData(PCWCHAR fileName, PBYTE * data, PDWORD lenght)	// for 
 	LARGE_INTEGER filesize;
 	HANDLE hFile = NULL;
 
-	if((hFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL)) && hFile != INVALID_HANDLE_VALUE)
+	if(isBase64InterceptInput)
+	{
+		if(!(reussite = kull_m_string_quick_base64_to_Binary(fileName, data, lenght)))
+			PRINT_ERROR_AUTO(L"kull_m_string_quick_base64_to_Binary");
+	}
+	else if((hFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL)) && hFile != INVALID_HANDLE_VALUE)
 	{
 		if(GetFileSizeEx(hFile, &filesize) && !filesize.HighPart)
 		{
@@ -132,7 +136,7 @@ PWCHAR kull_m_file_fullPath(PCWCHAR fileName)
 
 BOOL kull_m_file_Find(PCWCHAR directory, PCWCHAR filter, BOOL isRecursive /*TODO*/, DWORD level, BOOL isPrintInfos, PKULL_M_FILE_FIND_CALLBACK callback, PVOID pvArg)
 {
-	BOOL status = FALSE, bFind = TRUE;
+	BOOL status = FALSE;
 	DWORD dwAttrib;
 	HANDLE hFind;
 	WIN32_FIND_DATA fData;
@@ -172,19 +176,18 @@ BOOL kull_m_file_Find(PCWCHAR directory, PCWCHAR filter, BOOL isRecursive /*TODO
 											{
 												if(isPrintInfos)
 													kprintf(L"%*s" L"%3u %c|'%s\'\n", level << 1, L"", level, (fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? L'D' : L'F' , fData.cFileName);
-
 												if(!(fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
 												{
 													if(callback)
-														callback(level, fullpath, fullpath + dwAttrib, pvArg);
+														status = callback(level, fullpath, fullpath + dwAttrib, pvArg);
 												}
 												else if(isRecursive && fData.cFileName)
-													kull_m_file_Find(fullpath, filter, TRUE, level + 1, isPrintInfos, callback, pvArg);
+													status = kull_m_file_Find(fullpath, filter, TRUE, level + 1, isPrintInfos, callback, pvArg);
 											}
 										}
 									}
 								}
-							} while(bFind = FindNextFile(hFind, &fData));
+							} while(!status && FindNextFile(hFind, &fData));
 							FindClose(hFind);
 						}
 					}

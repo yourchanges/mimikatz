@@ -32,49 +32,6 @@ void kull_m_string_printSuspectUnicodeString(PVOID data, DWORD size)
 		kull_m_string_wprintf_hex(uString.Buffer, uString.Length, 1);
 }
 
-BOOL kull_m_string_getUnicodeString(IN PUNICODE_STRING string, IN PKULL_M_MEMORY_HANDLE source)
-{
-	BOOL status = FALSE;
-	KULL_M_MEMORY_HANDLE hOwn = {KULL_M_MEMORY_TYPE_OWN, NULL};
-	KULL_M_MEMORY_ADDRESS aDestin = {NULL, &hOwn};
-	KULL_M_MEMORY_ADDRESS aSource = {string->Buffer, source};
-	
-	string->Buffer = NULL;
-	if(aSource.address && string->MaximumLength)
-	{
-		if(aDestin.address = LocalAlloc(LPTR, string->MaximumLength))
-		{
-			string->Buffer = (PWSTR) aDestin.address;
-			status = kull_m_memory_copy(&aDestin, &aSource, string->MaximumLength);
-		}
-	}
-	return status;
-}
-
-BOOL kull_m_string_getSid(IN PSID * pSid, IN PKULL_M_MEMORY_HANDLE source)
-{
-	BOOL status = FALSE;
-	BYTE nbAuth;
-	DWORD sizeSid;
-	KULL_M_MEMORY_HANDLE hOwn = {KULL_M_MEMORY_TYPE_OWN, NULL};
-	KULL_M_MEMORY_ADDRESS aDestin = {&nbAuth, &hOwn};
-	KULL_M_MEMORY_ADDRESS aSource = {(PBYTE) *pSid + 1, source};
-
-	*pSid = NULL;
-	if(kull_m_memory_copy(&aDestin, &aSource, sizeof(BYTE)))
-	{
-		aSource.address = (PBYTE) aSource.address - 1;
-		sizeSid =  4 * nbAuth + 6 + 1 + 1;
-
-		if(aDestin.address = LocalAlloc(LPTR, sizeSid))
-		{
-			*pSid = (PSID) aDestin.address;
-			status = kull_m_memory_copy(&aDestin, &aSource, sizeSid);
-		}
-	}
-	return status;
-}
-
 void kull_m_string_MakeRelativeOrAbsoluteString(PVOID BaseAddress, PLSA_UNICODE_STRING String, BOOL relative)
 {
 	if(String->Buffer)
@@ -119,6 +76,17 @@ wchar_t * kull_m_string_qad_ansi_c_to_unicode(const char * ansi, SIZE_T szStr)
 		if(buffer = (wchar_t *) LocalAlloc(LPTR, (szStr + 1) * sizeof(wchar_t)))
 			for(i = 0; i < szStr; i++)
 				buffer[i] = ansi[i];
+	return buffer;
+}
+
+char * kull_m_string_unicode_to_ansi(const wchar_t * unicode)
+{
+	int needed;
+	char * buffer = NULL;
+	if(needed = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, unicode, -1, NULL, 0, NULL, NULL))
+		if(buffer = (char *) LocalAlloc(LPTR, needed))
+			if(needed != WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, unicode, -1, buffer, needed, NULL, NULL))
+				buffer = (char *) LocalFree(buffer);
 	return buffer;
 }
 
@@ -213,6 +181,19 @@ void kull_m_string_displayLocalFileTime(IN PFILETIME pFileTime)
 			kull_m_string_displayFileTime(&ft);
 }
 
+BOOL kull_m_string_FileTimeToString(IN PFILETIME pFileTime, OUT WCHAR string[14 + 1])
+{
+	BOOL status = FALSE;
+	FILETIME ft;
+	SYSTEMTIME st;
+	if(pFileTime)
+		if(FileTimeToLocalFileTime(pFileTime, &ft))
+			if(FileTimeToSystemTime(&ft, &st))
+				if(GetDateFormat(LOCALE_USER_DEFAULT, 0, &st, L"yyyyMMdd", string, 8 + 1))
+					status = GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, L"HHmmss", string + 8, 6 + 1);
+	return status;
+}
+
 void kull_m_string_displayGUID(IN LPCGUID pGuid)
 {
 	UNICODE_STRING uString;
@@ -233,29 +214,24 @@ void kull_m_string_displaySID(IN PSID pSid)
 	}
 	else PRINT_ERROR_AUTO(L"ConvertSidToStringSid");
 }
-
+#if !defined(MIMIKATZ_W2000_SUPPORT)
 PWSTR kull_m_string_getRandomGUID()
 {
 	UNICODE_STRING uString;
 	GUID guid;
-	HCRYPTPROV hTmpCryptProv;
 	PWSTR buffer = NULL;
-	if(CryptAcquireContext(&hTmpCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+	if(NT_SUCCESS(UuidCreate(&guid)))
 	{
-		if(CryptGenRandom(hTmpCryptProv, sizeof(GUID), (PBYTE) &guid))
+		if(NT_SUCCESS(RtlStringFromGUID(&guid, &uString)))
 		{
-			if(NT_SUCCESS(RtlStringFromGUID(&guid, &uString)))
-			{
-				if(buffer = (PWSTR) LocalAlloc(LPTR, uString.MaximumLength))
-					RtlCopyMemory(buffer, uString.Buffer, uString.MaximumLength);
-				RtlFreeUnicodeString(&uString);
-			}
+			if(buffer = (PWSTR) LocalAlloc(LPTR, uString.MaximumLength))
+				RtlCopyMemory(buffer, uString.Buffer, uString.MaximumLength);
+			RtlFreeUnicodeString(&uString);
 		}
-		CryptReleaseContext(hTmpCryptProv, 0);
 	}
 	return buffer;
 }
-
+#endif
 void kull_m_string_ptr_replace(PVOID ptr, DWORD64 size)
 {
 	PVOID tempPtr = NULL;
@@ -296,21 +272,37 @@ BOOL kull_m_string_args_byName(const int argc, const wchar_t * argv[], const wch
 			}
 		}
 	}
-
-	if(!result && theArgs && defaultValue)
+	if(!result && theArgs)
 	{
-		*theArgs = defaultValue;
-		result = TRUE;
+		if(defaultValue)
+		{
+			*theArgs = defaultValue;
+			result = TRUE;
+		}
+		else *theArgs = NULL;
 	}
-
 	return result;
 }
 
-BOOL kull_m_string_copy(LPWSTR *dst, LPCWSTR src)
+BOOL kull_m_string_args_bool_byName(int argc, wchar_t * argv[], LPCWSTR name, PBOOL value) // TRUE when name exist (not value related)
 {
 	BOOL status = FALSE;
-	size_t size;
-	if(src && dst && (size = wcslen(src)))
+	LPCWSTR szData;
+	if(status = kull_m_string_args_byName(argc, argv, name, &szData, NULL))
+	{
+		if((_wcsicmp(szData, L"on") == 0) || (_wcsicmp(szData, L"true") == 0) || (_wcsicmp(szData, L"1") == 0))
+			*value = TRUE;
+		else if((_wcsicmp(szData, L"off") == 0) || (_wcsicmp(szData, L"false") == 0) || (_wcsicmp(szData, L"0") == 0))
+			*value = FALSE;
+		else PRINT_ERROR(L"%s argument need on/true/1 or off/false/0\n", name);
+	}
+	return status;
+}
+
+BOOL kull_m_string_copy_len(LPWSTR *dst, LPCWSTR src, size_t size)
+{
+	BOOL status = FALSE;
+	if(src && dst && size)
 	{
 		size = (size + 1) * sizeof(wchar_t);
 		if(*dst = (LPWSTR) LocalAlloc(LPTR, size))
@@ -319,6 +311,39 @@ BOOL kull_m_string_copy(LPWSTR *dst, LPCWSTR src)
 			status = TRUE;
 		}
 	}
+	return status;
+}
+
+BOOL kull_m_string_copy(LPWSTR *dst, LPCWSTR src)
+{
+	BOOL status = FALSE;
+	size_t size;
+	if(src && dst && (size = wcslen(src)))
+		status = kull_m_string_copy_len(dst, src, size);
+	return status;
+}
+
+BOOL kull_m_string_copyA_len(LPSTR *dst, LPCSTR src, size_t size)
+{
+	BOOL status = FALSE;
+	if(src && dst && size)
+	{
+		size = (size + 1) * sizeof(char);
+		if(*dst = (LPSTR) LocalAlloc(LPTR, size))
+		{
+			RtlCopyMemory(*dst, src, size);
+			status = TRUE;
+		}
+	}
+	return status;
+}
+
+BOOL kull_m_string_copyA(LPSTR *dst, LPCSTR src)
+{
+	BOOL status = FALSE;
+	size_t size;
+	if(src && dst && (size = strlen(src)))
+		status = kull_m_string_copyA_len(dst, src, size);
 	return status;
 }
 
@@ -357,6 +382,164 @@ BOOL kull_m_string_quickxml_simplefind(LPCWSTR xml, LPCWSTR node, LPWSTR *dst)
 			LocalFree(end);
 		}
 		LocalFree(begin);
+	}
+	return status;
+}
+#if !defined(MIMIKATZ_W2000_SUPPORT)
+BOOL kull_m_string_quick_base64_to_Binary(PCWSTR base64, PBYTE *data, DWORD *szData)
+{
+	BOOL status = FALSE;
+	*data = NULL;
+	*szData = 0;
+	if(CryptStringToBinary(base64, 0, CRYPT_STRING_BASE64, NULL, szData, NULL, NULL))
+	{
+		if(*data = (PBYTE) LocalAlloc(LPTR, *szData))
+		{
+			status = CryptStringToBinary(base64, 0, CRYPT_STRING_BASE64, *data, szData, NULL, NULL);
+			if(!status)
+				*data = (PBYTE) LocalFree(*data);
+		}
+	}
+	return status;
+}
+#endif
+
+BOOL kull_m_string_sprintf(PWSTR *outBuffer, PCWSTR format, ...)
+{
+	BOOL status = FALSE;
+	int varBuf;
+	va_list args;
+	va_start(args, format);
+	varBuf = _vscwprintf(format, args);
+	if(varBuf > 0)
+	{
+		varBuf++;
+		if(*outBuffer = (PWSTR) LocalAlloc(LPTR, varBuf * sizeof(wchar_t)))
+		{
+			varBuf = vswprintf_s(*outBuffer, varBuf, format, args);
+			if(varBuf > 0)
+				status = TRUE;
+			else *outBuffer = (PWSTR) LocalFree(outBuffer);
+		}
+	}
+	return status;
+}
+
+const KIWI_DATETIME_FORMATS STRING_TO_FILETIME_FORMATS[] = {
+	{L"%hu/%hu/%hu %hu:%hu:%hu",	4,	1, 2, 3, 4, 5, 6}, // 2014/12/31 12(:34:56)
+	{L"%hu/%hu/%hu %hu:%hu:%hu",	4,	3, 2, 1, 4, 5, 6}, // 31/12/2014 12(:34:56)
+	{L"%hu-%hu-%hu %hu:%hu:%hu",	4,	1, 2, 3, 4, 5, 6}, // 2014-12-31 12(:34:56)
+
+	{L"%hu/%hu %hu:%hu:%hu",	3,	0, 2, 1, 3, 4, 5}, // 12/2014 12(:34:56)
+	{L"%hu-%hu %hu:%hu:%hu",	3,	0, 1, 2, 3, 4, 5}, // 12-31 12(:34:56)
+	{L"%hu %hu:%hu:%hu",	2,	0, 0, 1, 2, 3, 4}, // 31 12(:34:56)
+
+	{L"%hu:%hu:%hu",	2,	0, 0, 0, 1, 2, 3}, // 12:34(:56)
+	
+	{L"%hu/%hu/%hu",	2,	1, 2, 3, 0, 0, 0}, // 2014/12(/31)
+	{L"%hu/%hu/%hu",	2,	3, 2, 1, 0, 0, 0}, // 31/12(/2014)
+	{L"%hu-%hu-%hu",	2,	1, 2, 3, 0, 0, 0}, // 2014-12(-31)
+	
+	{L"%hu/%hu",	2,	2, 1, 0, 0, 0, 0}, // 12/2014
+	{L"%hu-%hu",	2,	0, 1, 2, 0, 0, 0}, // 12-31
+};
+
+BOOL kull_m_string_stringToFileTime(LPCWSTR string, PFILETIME filetime)
+{
+	BOOL status = FALSE;
+	const KIWI_DATETIME_FORMATS * cur;
+	SYSTEMTIME st;
+	FILETIME ft, lft;
+	LONGLONG diff;
+	WORD i, data[6] = {0};
+	int ret;
+	
+	for(i = 0; (i < ARRAYSIZE(STRING_TO_FILETIME_FORMATS)) && !status; i++)
+	{
+		cur = STRING_TO_FILETIME_FORMATS + i;
+		RtlZeroMemory(data, sizeof(data));
+		ret = swscanf_s(string, cur->format, data + 0, data + 1, data + 2, data + 3, data + 4, data + 5);
+
+		if(ret >=cur->minFields)
+		{
+			if(cur->idxYear && (cur->idxYear <= ret))
+			{
+				status = data[cur->idxYear - 1] >= 1900;
+				if(!status)
+					continue;
+			}
+			
+			if(cur->idxMonth && (cur->idxMonth <= ret))
+			{
+				status = data[cur->idxMonth - 1] <= 12;
+				if(!status)
+					continue;
+			}
+
+			if(cur->idxDay && (cur->idxDay <= ret))
+			{
+				status = data[cur->idxDay - 1] <= 31;
+				if(!status)
+					continue;
+			}
+
+			if(cur->idxHour && (cur->idxHour <= ret))
+			{
+				status = data[cur->idxHour - 1] <= 23;
+				if(!status)
+					continue;
+			}
+
+			if(cur->idxMinute && (cur->idxMinute <= ret))
+			{
+				status = data[cur->idxMinute - 1] <= 59;
+				if(!status)
+					continue;
+			}
+
+			if(cur->idxSecond && (cur->idxSecond <= ret))
+			{
+				status = data[cur->idxSecond - 1] <= 59;
+				if(!status)
+					continue;
+			}
+		}
+	}
+
+	if(status)
+	{
+		status = FALSE;
+		i--;
+		GetSystemTimeAsFileTime(&ft);
+		if(FileTimeToLocalFileTime(&ft, &lft))
+		{
+			diff = *((PULONGLONG) &lft) - *((PULONGLONG) &ft);
+			if(FileTimeToSystemTime(&lft, &st))
+			{
+				st.wDayOfWeek = 0;
+				st.wMilliseconds = 0;
+
+				if(cur->idxYear && (cur->idxYear <= ret))
+					st.wYear = data[cur->idxYear - 1];
+				if(cur->idxMonth && (cur->idxMonth <= ret))
+					st.wMonth = data[cur->idxMonth - 1];
+				if(cur->idxDay && (cur->idxDay <= ret))
+					st.wDay = data[cur->idxDay - 1];
+				if(cur->idxHour && (cur->idxHour <= ret))
+					st.wHour = data[cur->idxHour - 1];
+				if(cur->idxMinute && (cur->idxMinute <= ret))
+					st.wMinute = data[cur->idxMinute - 1];
+				if(cur->idxSecond && (cur->idxSecond <= ret))
+					st.wSecond = data[cur->idxSecond - 1];
+
+				if(status = SystemTimeToFileTime(&st, &ft))
+				{
+					*((PULONGLONG) &ft) -= diff;
+					*filetime = ft;
+				}
+			}
+		}
+
 	}
 	return status;
 }

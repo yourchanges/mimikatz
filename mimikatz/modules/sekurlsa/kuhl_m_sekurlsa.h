@@ -10,7 +10,7 @@
 #include "kuhl_m_sekurlsa_utils.h"
 #include "crypto/kuhl_m_sekurlsa_nt5.h"
 #include "crypto/kuhl_m_sekurlsa_nt6.h"
-#ifdef LSASS_DECRYPT
+#if defined(LSASS_DECRYPT)
 #include "crypto/kuhl_m_sekurlsa_nt63.h"
 #endif
 
@@ -26,25 +26,25 @@
 #include "../kerberos/kuhl_m_kerberos_ticket.h"
 #include "../kuhl_m_lsadump.h"
 
-#define KUHL_SEKURLSA_CREDS_DISPLAY_RAW				0x00000000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_LINE			0x00000001
-#define KUHL_SEKURLSA_CREDS_DISPLAY_NEWLINE			0x00000002
+#define KUHL_SEKURLSA_CREDS_DISPLAY_RAW					0x00000000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_LINE				0x00000001
+#define KUHL_SEKURLSA_CREDS_DISPLAY_NEWLINE				0x00000002
 
-#define KUHL_SEKURLSA_CREDS_DISPLAY_CREDENTIAL		0x08000000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_PRIMARY			0x01000000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_PRIMARY_10		0x02000000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_CREDENTIALKEY	0x03000000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_CREDENTIAL_MASK	0x07000000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_CREDENTIAL			0x08000000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_PRIMARY				0x01000000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_CREDENTIALKEY		0x02000000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_CREDENTIAL_MASK		0x07000000
 
-#define KUHL_SEKURLSA_CREDS_DISPLAY_KERBEROS_10		0x00100000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_KEY_LIST		0x00200000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_CREDMANPASS		0x00400000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_PINCODE			0x00800000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_KERBEROS_10			0x00100000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_KEY_LIST			0x00200000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_CREDMANPASS			0x00400000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_PINCODE				0x00800000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_KERBEROS_10_1607	0x00010000
 
-#define KUHL_SEKURLSA_CREDS_DISPLAY_NODECRYPT		0x10000000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_WPASSONLY		0x20000000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_DOMAIN			0x40000000
-#define KUHL_SEKURLSA_CREDS_DISPLAY_SSP				0x80000000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_NODECRYPT			0x10000000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_WPASSONLY			0x20000000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_DOMAIN				0x40000000
+#define KUHL_SEKURLSA_CREDS_DISPLAY_SSP					0x80000000
 
 const KUHL_M kuhl_m_sekurlsa;
 
@@ -62,16 +62,23 @@ NTSTATUS kuhl_m_sekurlsa_enum(PKUHL_M_SEKURLSA_ENUM callback, LPVOID pOptionalDa
 void kuhl_m_sekurlsa_printinfos_logonData(IN PKIWI_BASIC_SECURITY_LOGON_SESSION_DATA pData);
 NTSTATUS kuhl_m_sekurlsa_getLogonData(const PKUHL_M_SEKURLSA_PACKAGE * lsassPackages, ULONG nbPackages);
 BOOL CALLBACK kuhl_m_sekurlsa_enum_callback_logondata(IN PKIWI_BASIC_SECURITY_LOGON_SESSION_DATA pData, IN OPTIONAL LPVOID pOptionalData);
+VOID kuhl_m_sekurlsa_pth_luid(PSEKURLSA_PTH_DATA data);
 VOID kuhl_m_sekurlsa_genericCredsOutput(PKIWI_GENERIC_PRIMARY_CREDENTIAL mesCreds, PKIWI_BASIC_SECURITY_LOGON_SESSION_DATA pData, ULONG flags);
-VOID kuhl_m_sekurlsa_genericKeyOutput(struct _MARSHALL_KEY * key, PVOID * dirtyBase, LPCWSTR sid);
+VOID kuhl_m_sekurlsa_trymarshal(PCUNICODE_STRING MarshaledCredential);
+VOID kuhl_m_sekurlsa_genericKeyOutput(struct _KIWI_CREDENTIAL_KEY * key, LPCWSTR sid);
 VOID kuhl_m_sekurlsa_genericLsaIsoOutput(struct _LSAISO_DATA_BLOB * blob);
+VOID kuhl_m_sekurlsa_genericEncLsaIsoOutput(struct _ENC_LSAISO_DATA_BLOB * blob, DWORD size);
 void kuhl_m_sekurlsa_bkey(PKUHL_M_SEKURLSA_CONTEXT cLsass, PKUHL_M_SEKURLSA_LIB pLib, PKULL_M_PATCH_GENERIC generics, SIZE_T cbGenerics, BOOL isExport);
+#if !defined(_M_ARM64)
 void kuhl_m_sekurlsa_krbtgt_keys(PVOID addr, PCWSTR prefix);
+#endif
 void kuhl_m_sekurlsa_trust_domainkeys(struct _KDC_DOMAIN_KEYS_INFO * keysInfo, PCWSTR prefix, BOOL incoming, PCUNICODE_STRING domain);
 void kuhl_m_sekurlsa_trust_domaininfo(struct _KDC_DOMAIN_INFO * info);
 
 NTSTATUS kuhl_m_sekurlsa_all(int argc, wchar_t * argv[]);
+#if !defined(_M_ARM64)
 NTSTATUS kuhl_m_sekurlsa_krbtgt(int argc, wchar_t * argv[]);
+#endif
 NTSTATUS kuhl_m_sekurlsa_dpapi_system(int argc, wchar_t * argv[]);
 NTSTATUS kuhl_m_sekurlsa_trust(int argc, wchar_t * argv[]);
 NTSTATUS kuhl_m_sekurlsa_bkeys(int argc, wchar_t * argv[]);
@@ -97,6 +104,25 @@ typedef struct _KUHL_M_SEKURLSA_GET_LOGON_DATA_CALLBACK_DATA {
 	const PKUHL_M_SEKURLSA_PACKAGE * lsassPackages;
 	ULONG nbPackages;
 } KUHL_M_SEKURLSA_GET_LOGON_DATA_CALLBACK_DATA, *PKUHL_M_SEKURLSA_GET_LOGON_DATA_CALLBACK_DATA;
+
+typedef struct _KIWI_KRBTGT_CREDENTIAL_64 {
+	PVOID unk0;
+	PVOID unk1_key_salt;
+	PVOID flags;
+	PVOID unk2; //
+	PVOID type;
+	PVOID size;
+	PVOID key;
+} KIWI_KRBTGT_CREDENTIAL_64, *PKIWI_KRBTGT_CREDENTIAL_64;
+
+typedef struct _KIWI_KRBTGT_CREDENTIALS_64 {
+	DWORD unk0_ver;
+	DWORD cbCred;
+	PVOID unk1;
+	LSA_UNICODE_STRING salt;
+	PVOID unk2;
+	KIWI_KRBTGT_CREDENTIAL_64 credentials[ANYSIZE_ARRAY];
+} KIWI_KRBTGT_CREDENTIALS_64, *PKIWI_KRBTGT_CREDENTIALS_64;
 
 typedef struct _KIWI_KRBTGT_CREDENTIAL_6 {
 	PVOID unk0;
@@ -188,3 +214,9 @@ typedef struct _LSAISO_DATA_BLOB {
 	DWORD origSize;
 	BYTE data[ANYSIZE_ARRAY];
 } LSAISO_DATA_BLOB, *PLSAISO_DATA_BLOB;
+
+typedef struct _ENC_LSAISO_DATA_BLOB {
+	BYTE unkData1[16];
+	BYTE unkData2[16];
+	BYTE data[ANYSIZE_ARRAY];
+} ENC_LSAISO_DATA_BLOB, *PENC_LSAISO_DATA_BLOB;

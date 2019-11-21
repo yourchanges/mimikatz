@@ -5,6 +5,7 @@
 */
 #pragma once
 #include "kwindbg.h"
+#include "kull_m_rpc_ms-credentialkeys.h"
 
 void CALLBACK kuhl_m_sekurlsa_enum_logon_callback_msv(IN ULONG_PTR reserved, IN PKIWI_BASIC_SECURITY_LOGON_SESSION_DATA pData);
 void CALLBACK kuhl_m_sekurlsa_enum_logon_callback_kerberos(IN ULONG_PTR pKerbGlobalLogonSessionTable, IN PKIWI_BASIC_SECURITY_LOGON_SESSION_DATA pData);
@@ -27,6 +28,21 @@ typedef struct _MSV1_0_PRIMARY_CREDENTIAL {
 	/* buffer */
 } MSV1_0_PRIMARY_CREDENTIAL, *PMSV1_0_PRIMARY_CREDENTIAL;
 
+typedef struct _MSV1_0_PRIMARY_CREDENTIAL_10_OLD { 
+	LSA_UNICODE_STRING LogonDomainName; 
+	LSA_UNICODE_STRING UserName;
+	BOOLEAN isIso;
+	BOOLEAN isNtOwfPassword;
+	BOOLEAN isLmOwfPassword;
+	BOOLEAN isShaOwPassword;
+	BYTE align0;
+	BYTE align1;
+	BYTE NtOwfPassword[LM_NTLM_HASH_LENGTH];
+	BYTE LmOwfPassword[LM_NTLM_HASH_LENGTH];
+	BYTE ShaOwPassword[SHA_DIGEST_LENGTH];
+	/* buffer */
+} MSV1_0_PRIMARY_CREDENTIAL_10_OLD, *PMSV1_0_PRIMARY_CREDENTIAL_10_OLD;
+
 typedef struct _MSV1_0_PRIMARY_CREDENTIAL_10 { 
 	LSA_UNICODE_STRING LogonDomainName; 
 	LSA_UNICODE_STRING UserName;
@@ -44,43 +60,65 @@ typedef struct _MSV1_0_PRIMARY_CREDENTIAL_10 {
 	/* buffer */
 } MSV1_0_PRIMARY_CREDENTIAL_10, *PMSV1_0_PRIMARY_CREDENTIAL_10;
 
-typedef struct _RPCE_COMMON_TYPE_HEADER {
-	UCHAR Version;
-	UCHAR Endianness;
-	USHORT CommonHeaderLength;
-	ULONG Filler;
-} RPCE_COMMON_TYPE_HEADER, *PRPCE_COMMON_TYPE_HEADER;
+typedef struct _MSV1_0_PRIMARY_CREDENTIAL_10_1607 { 
+	LSA_UNICODE_STRING LogonDomainName; 
+	LSA_UNICODE_STRING UserName;
+	PVOID pNtlmCredIsoInProc;
+	BOOLEAN isIso;
+	BOOLEAN isNtOwfPassword;
+	BOOLEAN isLmOwfPassword;
+	BOOLEAN isShaOwPassword;
+	BOOLEAN isDPAPIProtected;
+	BYTE align0;
+	BYTE align1;
+	BYTE align2;
+	DWORD unkD; // 1/2
+	#pragma pack(push, 2)
+	WORD isoSize;  // 0000
+	BYTE DPAPIProtected[LM_NTLM_HASH_LENGTH];
+	DWORD align3; // 00000000
+	#pragma pack(pop) 
+	BYTE NtOwfPassword[LM_NTLM_HASH_LENGTH];
+	BYTE LmOwfPassword[LM_NTLM_HASH_LENGTH];
+	BYTE ShaOwPassword[SHA_DIGEST_LENGTH];
+	/* buffer */
+} MSV1_0_PRIMARY_CREDENTIAL_10_1607, *PMSV1_0_PRIMARY_CREDENTIAL_10_1607;
 
-typedef struct _RPCE_PRIVATE_HEADER {
-	ULONG ObjectBufferLength;
-	ULONG Filler;
-} RPCE_PRIVATE_HEADER, *PRPCE_PRIVATE_HEADER;
+typedef struct _MSV1_0_PRIMARY_HELPER {
+	LONG offsetToLogonDomain;
+	LONG offsetToUserName;
+	LONG offsetToisIso;
+	LONG offsetToisNtOwfPassword;
+	LONG offsetToisLmOwfPassword;
+	LONG offsetToisShaOwPassword;
+	LONG offsetToisDPAPIProtected;
+	LONG offsetToNtOwfPassword;
+	LONG offsetToLmOwfPassword;
+	LONG offsetToShaOwPassword;
+	LONG offsetToDPAPIProtected;
+	LONG offsetToIso;
+} MSV1_0_PRIMARY_HELPER, *PMSV1_0_PRIMARY_HELPER;
 
-typedef ULONG32 RPCEID;
+const MSV1_0_PRIMARY_HELPER * kuhl_m_sekurlsa_msv_helper();
 
-typedef struct _MARSHALL_KEY {
-	DWORD unkId;
-	USHORT unk0;
-	USHORT length;
-	RPCEID ElementId;
-} MARSHALL_KEY, *PMARSHALL_KEY;
-
-typedef struct _RPCE_CREDENTIAL_KEYCREDENTIAL {
-	RPCE_COMMON_TYPE_HEADER	typeHeader;
-	RPCE_PRIVATE_HEADER	privateHeader;
-	RPCEID RootElementId;
-	DWORD unk0;
-	DWORD unk1;
-	MARSHALL_KEY key[ANYSIZE_ARRAY];
-} RPCE_CREDENTIAL_KEYCREDENTIAL, *PRPCE_CREDENTIAL_KEYCREDENTIAL;
+typedef struct _KERB_HASHPASSWORD_GENERIC {
+	DWORD Type;
+	SIZE_T Size;
+	PBYTE Checksump;
+} KERB_HASHPASSWORD_GENERIC, *PKERB_HASHPASSWORD_GENERIC;
 
 typedef struct _KERB_HASHPASSWORD_6 {
 	LSA_UNICODE_STRING salt;	// http://tools.ietf.org/html/rfc3962
 	PVOID stringToKey; // AES Iterations (dword ?)
-	DWORD Type;
-	SIZE_T Size;
-	PBYTE Checksump;
+	KERB_HASHPASSWORD_GENERIC generic;
 } KERB_HASHPASSWORD_6, *PKERB_HASHPASSWORD_6;
+
+typedef struct _KERB_HASHPASSWORD_6_1607 {
+	LSA_UNICODE_STRING salt;	// http://tools.ietf.org/html/rfc3962
+	PVOID stringToKey; // AES Iterations (dword ?)
+	PVOID unk0;
+	KERB_HASHPASSWORD_GENERIC generic;
+} KERB_HASHPASSWORD_6_1607, *PKERB_HASHPASSWORD_6_1607;
 
 typedef struct _KIWI_KERBEROS_KEYS_LIST_6 {
 	DWORD unk0;		// dword_1233EC8 dd 4
@@ -160,7 +198,7 @@ typedef struct _KIWI_KERBEROS_LOGON_SESSION {
 	PVOID		unk5;
 	PVOID		unk6;
 	LUID		LocallyUniqueIdentifier;
-#ifdef _M_IX86
+#if defined(_M_IX86)
 	ULONG		unkAlign;
 #endif
 	FILETIME	unk7;
@@ -215,7 +253,7 @@ typedef struct _KIWI_KERBEROS_LOGON_SESSION_10 {
 	PVOID		unk11;
 	PVOID		unk12;
 	PVOID		unk13;
-#ifdef _M_IX86
+#if defined(_M_IX86)
 	ULONG		unkAlign;
 #endif
 	KIWI_KERBEROS_10_PRIMARY_CREDENTIAL	credentials;
@@ -242,11 +280,75 @@ typedef struct _KIWI_KERBEROS_LOGON_SESSION_10 {
 	PVOID		SmartcardInfos;
 } KIWI_KERBEROS_LOGON_SESSION_10, *PKIWI_KERBEROS_LOGON_SESSION_10;
 
+typedef struct _KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607_ISO
+{
+	DWORD StructSize;
+	struct _LSAISO_DATA_BLOB *isoBlob; // aligned;
+} KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607_ISO, *PKIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607_ISO;
+
+typedef struct _KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607
+{
+	LSA_UNICODE_STRING UserName;
+	LSA_UNICODE_STRING Domaine;
+	PVOID		unkFunction;
+	DWORD		type; // or flags 2 = normal, 1 = ISO
+	union {
+		LSA_UNICODE_STRING Password;
+		KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607_ISO IsoPassword;
+	};
+} KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607, *PKIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607;
+
+typedef struct _KIWI_KERBEROS_LOGON_SESSION_10_1607 {
+	ULONG		UsageCount;
+	LIST_ENTRY	unk0;
+	PVOID		unk1;
+	ULONG		unk1b;
+	FILETIME	unk2;
+	PVOID		unk4;
+	PVOID		unk5;
+	PVOID		unk6;
+	LUID		LocallyUniqueIdentifier;
+	FILETIME	unk7;
+	PVOID		unk8;
+	ULONG		unk8b;
+	FILETIME	unk9;
+	PVOID		unk11;
+	PVOID		unk12;
+	PVOID		unk13;
+#if defined(_M_IX86)
+	ULONG		unkAlign;
+#endif
+	KIWI_KERBEROS_10_PRIMARY_CREDENTIAL_1607	credentials;
+	ULONG		unk14;
+	ULONG		unk15;
+	ULONG		unk16;
+	ULONG		unk17;
+	PVOID		unk18;
+	PVOID		unk19;
+	PVOID		unk20;
+	PVOID		unk21;
+	PVOID		unk22;
+	PVOID		unk23;
+	PVOID		unk24;
+	PVOID		unk25;
+	PVOID		pKeyList;
+	PVOID		unk26;
+	LIST_ENTRY	Tickets_1;
+	FILETIME	unk27;
+	LIST_ENTRY	Tickets_2;
+	FILETIME	unk28;
+	LIST_ENTRY	Tickets_3;
+	FILETIME	unk29;
+	PVOID		SmartcardInfos;
+} KIWI_KERBEROS_LOGON_SESSION_10_1607, *PKIWI_KERBEROS_LOGON_SESSION_10_1607;
+
 typedef struct _KERB_INFOS {
 	LONG	offsetLuid;
 	LONG	offsetCreds;
 	LONG	offsetPin;
 	LONG	offsetKeyList;
+	LONG	offsetHashGeneric;
+	SIZE_T	structKeyPasswordHashSize;
 	SIZE_T	structSize;
 	LONG	offsetSizeOfCsp;
 	LONG	offsetNames;
@@ -283,9 +385,9 @@ typedef struct _KIWI_TS_PRIMARY_CREDENTIAL {
 } KIWI_TS_PRIMARY_CREDENTIAL, *PKIWI_TS_PRIMARY_CREDENTIAL;
 
 typedef struct _KIWI_TS_CREDENTIAL {
-#ifdef _M_X64
+#if defined(_M_X64) || defined(_M_ARM64)
 	BYTE unk0[108];
-#elif defined _M_IX86
+#elif defined(_M_IX86)
 	BYTE unk0[64];
 #endif
 	LUID LocallyUniqueIdentifier;
@@ -294,9 +396,26 @@ typedef struct _KIWI_TS_CREDENTIAL {
 	PKIWI_TS_PRIMARY_CREDENTIAL pTsPrimary;
 } KIWI_TS_CREDENTIAL, *PKIWI_TS_CREDENTIAL;
 
-#ifdef _M_X64
+typedef struct _KIWI_TS_CREDENTIAL_1607 {
+#if defined(_M_X64) || defined(_M_ARM64)
+	BYTE unk0[112];
+#elif defined(_M_IX86)
+	BYTE unk0[68];
+#endif
+	LUID LocallyUniqueIdentifier;
+	PVOID unk1;
+	PVOID unk2;
+	PKIWI_TS_PRIMARY_CREDENTIAL pTsPrimary;
+} KIWI_TS_CREDENTIAL_1607, *PKIWI_TS_CREDENTIAL_1607;
+
+typedef struct _KIWI_TS_CREDENTIAL_HELPER {
+	LONG offsetToLuid;
+	LONG offsetToTsPrimary;
+} KIWI_TS_CREDENTIAL_HELPER, *PKIWI_TS_CREDENTIAL_HELPER;
+
+#if defined(_M_X64) || defined(_M_ARM64)
 	#define offsetWDigestPrimary 48
-#elif defined _M_IX86
+#elif defined(_M_IX86)
 	#define offsetWDigestPrimary 32
 #endif
 typedef struct _KIWI_WDIGEST_LIST_ENTRY {
@@ -402,6 +521,25 @@ typedef struct _KIWI_CREDMAN_SET_LIST_ENTRY {
 	// ...
 } KIWI_CREDMAN_SET_LIST_ENTRY, *PKIWI_CREDMAN_SET_LIST_ENTRY;
 
+typedef struct _KIWI_KRBTGT_CREDENTIAL_64 {
+	PVOID unk0;
+	PVOID unk1_key_salt;
+	PVOID flags;
+	PVOID unk2; //
+	PVOID type;
+	PVOID size;
+	PVOID key;
+} KIWI_KRBTGT_CREDENTIAL_64, *PKIWI_KRBTGT_CREDENTIAL_64;
+
+typedef struct _KIWI_KRBTGT_CREDENTIALS_64 {
+	DWORD unk0_ver;
+	DWORD cbCred;
+	PVOID unk1;
+	LSA_UNICODE_STRING salt;
+	PVOID unk2;
+	KIWI_KRBTGT_CREDENTIAL_64 credentials[ANYSIZE_ARRAY];
+} KIWI_KRBTGT_CREDENTIALS_64, *PKIWI_KRBTGT_CREDENTIALS_64;
+
 typedef struct _KIWI_KRBTGT_CREDENTIAL_6 {
 	PVOID unk0;
 	PVOID unk1_key_salt;
@@ -477,6 +615,12 @@ typedef struct _LSAISO_DATA_BLOB {
 	DWORD origSize;
 	BYTE data[ANYSIZE_ARRAY];
 } LSAISO_DATA_BLOB, *PLSAISO_DATA_BLOB;
+
+typedef struct _ENC_LSAISO_DATA_BLOB {
+	BYTE unkData1[16];
+	BYTE unkData2[16];
+	BYTE data[ANYSIZE_ARRAY];
+} ENC_LSAISO_DATA_BLOB, *PENC_LSAISO_DATA_BLOB;
 
 typedef struct _KIWI_BACKUP_KEY {
 	DWORD version;

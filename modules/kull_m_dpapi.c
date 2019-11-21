@@ -283,7 +283,7 @@ PKULL_M_DPAPI_CREDHIST kull_m_dpapi_credhist_create(LPCVOID data, DWORD size)
 		currSize = ((PKULL_M_DPAPI_CREDHIST_ENTRY) ((PBYTE) data + size - (sumSize + currSize)))->header.dwNextLen, sumSize += currSize, credhist->__dwCount++
 			);
 
-		if(credhist->entries = (PKULL_M_DPAPI_CREDHIST_ENTRY *) LocalAlloc(LPTR, credhist->__dwCount * sizeof(PKULL_M_DPAPI_CREDHIST_ENTRY *)))
+		if(credhist->entries = (PKULL_M_DPAPI_CREDHIST_ENTRY *) LocalAlloc(LPTR, credhist->__dwCount * sizeof(PKULL_M_DPAPI_CREDHIST_ENTRY)))
 			for(
 				i = 0, sumSize = sizeof(KULL_M_DPAPI_CREDHIST_HEADER), currSize = credhist->current.dwNextLen;
 				(sumSize < size) && currSize;
@@ -760,6 +760,23 @@ BOOL kull_m_dpapi_unprotect_domainkey_with_key(PKULL_M_DPAPI_MASTERKEY_DOMAINKEY
 			CryptDestroyKey(hKey);
 		}
 		CryptReleaseContext(hProv, 0);
+	}
+	return status;
+}
+
+BOOL kull_m_dpapi_unprotect_domainkey_with_rpc(PKULL_M_DPAPI_MASTERKEYS masterkeys, PVOID rawMasterkeys, LPCWSTR server, PVOID *output, DWORD *outputLen)
+{
+	BOOL status = FALSE;
+	PBYTE out;
+	DWORD dwOut;
+	*output = NULL;
+	*outputLen = 0;
+	if(status = kull_m_rpc_bkrp_Restore(server, (PBYTE) rawMasterkeys + FIELD_OFFSET(KULL_M_DPAPI_MASTERKEYS, MasterKey) + masterkeys->dwMasterKeyLen + masterkeys->dwBackupKeyLen + masterkeys->dwCredHistLen, (DWORD) masterkeys->dwDomainKeyLen, (PVOID *) &out, &dwOut))
+	{
+		*outputLen = dwOut - sizeof(DWORD);
+		if(*output = LocalAlloc(LPTR, *outputLen))
+			RtlCopyMemory(*output, out + sizeof(DWORD), dwOut - sizeof(DWORD));
+		LocalFree(out);
 	}
 	return status;
 }
